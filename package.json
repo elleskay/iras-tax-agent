@@ -1,0 +1,14 @@
+{
+  "name": "iras-tax-agent",
+  "version": "1.0.0",
+  "description": "IRAS tax FAQ assistant with Claude tool_use",
+  "type": "module",
+  "scripts": {
+    "start": "node agent.mjs",
+    "test": "node --test tests/smoke.test.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "dotenv": "^16.0.0"
+  }
+}
