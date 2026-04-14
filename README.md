@@ -7,28 +7,50 @@ A minimal Claude `tool_use` agent for answering Singapore IRAS tax questions.
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                    agent.mjs                        │
-│  argv[2] ──► Claude Haiku ◄──► tool_use loop        │
-│                    │                                │
-│         ┌──────────┼──────────┐                     │
-│         ▼          ▼          ▼                     │
-│   lookup_tax  calculate_tax  escalate_to_human       │
-│   _info()     _estimate()    ()                     │
-│   (facts)     (math)         │                      │
-│                              ▼                      │
-│                       hitl-queue.json               │
-│                              │                      │
-│                         hitl.mjs                    │
-│                    (human advisor view)              │
-└─────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                           agent.mjs                                 │
+│                                                                     │
+│  argv[2] ──► routeQuery() ──► factual-lookup → OpenAI gpt-4o-mini  │
+│                          │                       (direct, no tools) │
+│                          └──► pii/advice/default                    │
+│                                    │                                │
+│                          Claude Haiku ◄──► tool_use loop            │
+│                                    │                                │
+│                         ┌──────────┼──────────┐                     │
+│                         ▼          ▼          ▼                     │
+│                   lookup_tax  calculate_tax  escalate_to_human      │
+│                   _info()     _estimate()    ()                     │
+│                   (facts)     (math)         │                      │
+│                                              ▼                      │
+│                                       hitl-queue.json               │
+│                                              │                      │
+│                                         hitl.mjs                    │
+│                                    (human advisor view)              │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+## Model Routing
+
+`routeQuery()` in [router.mjs](router.mjs) inspects the query before any API call and dispatches to the appropriate provider:
+
+| Rule | Pattern | Provider | Model | Execution path |
+|------|---------|----------|-------|----------------|
+| PII detected | NRIC (`S/T` + 7 digits) or UEN | Anthropic | claude-haiku-4-5-20251001 | tool_use loop → HITL |
+| Personalised advice | `should I`, `will I`, `my income`, `how much will I pay` | Anthropic | claude-haiku-4-5-20251001 | tool_use loop → HITL |
+| Factual lookup | `what is`, `what are`, `deadline`, `rate`, `threshold` | OpenAI | gpt-4o-mini | direct chat completion |
+| Default | everything else | Anthropic | claude-haiku-4-5-20251001 | tool_use loop → HITL |
+
+The router logs its decision before any API call:
+```
+[router] factual-lookup → openai/gpt-4o-mini
+[router] personalised-advice → anthropic/claude-haiku-4-5-20251001
 ```
 
 ## Setup
 
 ```bash
 cp .env.example .env
-# Edit .env and add your ANTHROPIC_API_KEY
+# Edit .env and add your ANTHROPIC_API_KEY and OPENAI_API_KEY
 
 npm install
 ```
@@ -100,6 +122,7 @@ Case #1736123456789
 | File | Purpose |
 |------|---------|
 | `agent.mjs` | Main agent loop — accepts query, runs tool_use until end_turn |
+| `router.mjs` | Model router — dispatches queries to Anthropic or OpenAI based on content |
 | `tools.mjs` | Tool definitions (Claude API format) + handler implementations |
 | `hitl.mjs` | Human-in-the-loop viewer — run separately to see pending escalations |
 | `hitl-queue.json` | Auto-created on first escalation (gitignored) |

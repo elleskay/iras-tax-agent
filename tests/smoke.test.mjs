@@ -18,7 +18,8 @@ function makeStub(responses) {
   };
 }
 
-test("normal query: response contains GST threshold amount", async () => {
+// The OpenAI factual-lookup path (FACTUAL_RE queries) is integration-only and not covered by this stub.
+test("Anthropic path (mock): stub returns GST threshold amount", async () => {
   const stub = makeStub([
     {
       stop_reason: "tool_use",
@@ -43,7 +44,7 @@ test("normal query: response contains GST threshold amount", async () => {
   ]);
 
   const result = await run(
-    "What is the GST registration threshold in Singapore?",
+    "Should I register for GST? My turnover is approaching SGD 1,000,000.",
     stub
   );
 

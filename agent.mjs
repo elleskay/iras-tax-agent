@@ -1,9 +1,10 @@
 import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 import { tools, executeTool } from "./tools.mjs";
+import { routeQuery } from "./router.mjs";
 import { fileURLToPath } from "url";
 import "dotenv/config";
 
-const MODEL = "claude-haiku-4-5-20251001";
 const SYSTEM = `You are an IRAS (Inland Revenue Authority of Singapore) tax FAQ assistant.
 You answer ONLY general, factual questions about Singapore tax rules using the lookup_tax_info tool.
 
@@ -18,11 +19,27 @@ Do NOT ask clarifying questions for personalised queries — escalate immediatel
 Never fabricate tax figures or rules — always use the lookup tool for factual questions.`;
 
 export async function run(query, client = new Anthropic()) {
+  const route = routeQuery(query);
+  console.log(`[router] ${route.reason} → ${route.provider}/${route.model}`);
+
+  if (route.provider === "openai") {
+    const openai = new OpenAI();
+    const response = await openai.chat.completions.create({
+      model: route.model,
+      messages: [
+        { role: "system", content: SYSTEM },
+        { role: "user", content: query },
+      ],
+      temperature: 0,
+    });
+    return response.choices[0].message.content;
+  }
+
   const messages = [{ role: "user", content: query }];
 
   while (true) {
     const response = await client.messages.create({
-      model: MODEL,
+      model: route.model,
       max_tokens: 1024,
       system: SYSTEM,
       tools,
