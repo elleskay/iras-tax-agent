@@ -127,6 +127,26 @@ Case #1736123456789
 | `hitl.mjs` | Human-in-the-loop viewer — run separately to see pending escalations |
 | `hitl-queue.json` | Auto-created on first escalation (gitignored) |
 
+## Docker
+
+Build the image:
+```
+docker build -t iras-tax-agent .
+```
+
+Run with a query (API key passed at runtime, never baked in):
+```
+docker run --env-file .env iras-tax-agent "What is the corporate income tax rate?"
+```
+
+Or with docker compose (uses .env file automatically):
+```
+docker compose run --rm agent "What is the SRS contribution limit?"
+```
+
+The agent runs in a minimal Alpine container. API keys are injected at runtime via
+environment variables, never in the image layer.
+
 ## Notes
 
 - `calculate_tax_estimate` returns **chargeable income only**, not final tax payable

@@ -1,0 +1,5 @@
+services:
+  agent:
+    build: .
+    env_file: .env
+    command: ["What is the GST registration threshold in Singapore?"]
